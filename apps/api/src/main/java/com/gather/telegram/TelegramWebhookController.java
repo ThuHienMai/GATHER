@@ -1,0 +1,81 @@
+package com.gather.telegram;
+
+import com.fasterxml.jackson.databind.*;
+import com.gather.common.ApiException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+public class TelegramWebhookController {
+  private final String secret;
+  private final ObjectMapper mapper;
+  private final TelegramBotClient bot;
+  private final TelegramUpdateService updates;
+  private final InlineSharingService sharing;
+
+  public TelegramWebhookController(
+      @Value("${gather.telegram.webhook-secret}") String secret,
+      ObjectMapper mapper,
+      TelegramBotClient bot,
+      TelegramUpdateService updates,
+      InlineSharingService sharing) {
+    this.secret = secret;
+    this.mapper = mapper;
+    this.bot = bot;
+    this.updates = updates;
+    this.sharing = sharing;
+  }
+
+  @PostMapping("/api/v1/telegram/webhook")
+  public Map<String, Boolean> receive(
+      @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", defaultValue = "") String supplied,
+      @RequestBody byte[] body)
+      throws Exception {
+    if (secret.isBlank()
+        || !MessageDigest.isEqual(
+            secret.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8)))
+      throw new ApiException(401, "Invalid webhook secret.");
+    if (body.length > 131072) throw new ApiException(413, "Webhook too large.");
+    var update = mapper.readTree(body);
+    var message = update.path("message");
+    var command = message.path("text").asText("").split("[ @]", 2)[0];
+    String role = "MEMBER";
+    if (Set.of("/setup", "/join").contains(command)) {
+      if (message.has("sender_chat"))
+        throw new ApiException(400, "Use your personal Telegram identity for this command.");
+      long chat = message.path("chat").path("id").asLong();
+      long user = message.path("from").path("id").asLong();
+      var status = bot.status(chat, user);
+      if (!Set.of("creator", "administrator", "member").contains(status))
+        throw new ApiException(403, "Group membership required.");
+      role = TelegramUpdateService.isAdmin(status) ? "ADMIN" : "MEMBER";
+      if (!TelegramUpdateService.isAdmin(bot.status(chat, bot.botId())))
+        throw new ApiException(403, "Give the Gather bot administrator access first.");
+    }
+    boolean processed = updates.process(update, role);
+    if (update.has("inline_query")) {
+      sharing.answer(update.path("inline_query"));
+      return Map.of("ok", true);
+    }
+    if (processed && Set.of("/setup", "/join", "/start", "/help").contains(command)) {
+      bot.call(
+          "sendMessage",
+          Map.of(
+              "chat_id",
+              message.path("chat").path("id").asLong(),
+              "text",
+              switch (command) {
+                case "/setup" -> "Gather is ready. Members can run /join to enroll.";
+                case "/join" -> "You joined Gather. Open the Mini App to see your community.";
+                case "/start" ->
+                    "Welcome to Gather. Notifications are enabled. Run /join in your group to get started.";
+                default ->
+                    "Gather: admins run /setup in a group; members run /join; open the Mini App to plan events. Start this bot privately to enable notifications.";
+              }));
+    }
+    return Map.of("ok", true);
+  }
+}

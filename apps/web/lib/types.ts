@@ -1,0 +1,10 @@
+import type { components } from '../generated/api';
+type Complete<T> = { [K in keyof T]-?: Exclude<T[K],undefined> };
+type EventSchema = Complete<components['schemas']['Event']>;
+type NullableEventField = 'description'|'locationText'|'locationUrl'|'startAt'|'endAt'|'flexWindowStart'|'flexWindowEnd'|'durationMinutes'|'capacity';
+export type GatherEvent = { [K in keyof EventSchema]: K extends NullableEventField ? EventSchema[K]|null : EventSchema[K] };
+export type GatherUser = Complete<components['schemas']['User']>;
+export type Community = Complete<components['schemas']['Community']>;
+export type Participant = Complete<components['schemas']['Participant']>;
+export type RsvpSummary = Omit<Complete<components['schemas']['Summary']>,'participants'|'myStatus'> & { participants:Participant[];myStatus:string|null };
+export type ScheduleSlot = Complete<components['schemas']['Slot']>;

@@ -1,0 +1,50 @@
+spring:
+  task:
+    scheduling:
+      pool:
+        size: 4
+  application:
+    name: gather
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/gather}
+    username: ${DATABASE_USERNAME:gather}
+    password: ${DATABASE_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+springdoc:
+  api-docs:
+    path: /api/openapi.json
+gather:
+  management-token: ${MANAGEMENT_TOKEN:}
+  jwt-secret: ${JWT_SIGNING_SECRET:}
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:3000}
+  telegram:
+    mini-app-short-name: ${TELEGRAM_MINI_APP_SHORT_NAME:gather}
+    bot-username: ${TELEGRAM_BOT_USERNAME:}
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO

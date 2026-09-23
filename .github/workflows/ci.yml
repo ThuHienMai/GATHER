@@ -1,0 +1,40 @@
+name: Gather CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - run: pnpm install --frozen-lockfile
+      - run: ./mvnw -B -ntp spotless:check verify
+        working-directory: apps/api
+      - name: Check generated API contract
+        run: |
+          cp apps/api/target/openapi.json docs/openapi.json
+          pnpm --dir apps/web generate:api
+          git diff --exit-code -- docs/openapi.json apps/web/generated/api.ts
+      - run: pnpm lint && pnpm typecheck && pnpm test && pnpm build
+      - run: pnpm --dir apps/web exec playwright install --with-deps chromium
+      - name: Full browser workflows against isolated API and PostgreSQL
+        run: bash scripts/e2e-stack.sh test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-evidence
+          path: |
+            apps/api/target/surefire-reports
+            apps/api/target/failsafe-reports
+            apps/web/test-results
+            .tools/e2e-api.log

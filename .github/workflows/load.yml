@@ -1,0 +1,31 @@
+name: Manual load verification
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - uses: grafana/setup-k6-action@v1
+      - name: Start isolated stack and run load scenarios
+        run: |
+          bash scripts/e2e-stack.sh start
+          trap 'bash scripts/e2e-stack.sh stop' EXIT
+          docker compose -p gather-e2e -f infra/e2e-compose.yml exec -T postgres psql -U gather_test -d gather_test < scripts/load-seed.sql
+          cd load-tests/k6
+          failed=0
+          for scenario in feed rsvp ws schedule webhook; do
+            k6 run -e CASE="$scenario" scenarios.js || failed=1
+          done
+          exit "$failed"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-results
+          path: docs/load-results

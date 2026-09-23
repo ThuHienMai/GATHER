@@ -1,0 +1,9 @@
+{
+  "name": "gather", "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "pnpm --dir apps/web dev", "build": "pnpm --dir apps/web build",
+    "lint": "pnpm --dir apps/web lint", "typecheck": "pnpm --dir apps/web typecheck",
+    "test": "pnpm --dir apps/web test", "e2e": "pnpm --dir apps/web e2e"
+  }
+}
