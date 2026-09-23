@@ -309,7 +309,9 @@ class EventIT {
 
   @Test
   void availabilityIsCanonicalPrivateAndFinalizationLocks() {
-    var start = Instant.now().plusSeconds(3600);
+    // PostgreSQL stores microseconds; Linux clocks can supply nanoseconds that round
+    // across the window boundary when the event is persisted and read back.
+    var start = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS).plusSeconds(3600);
     var end = start.plusSeconds(14400);
     var e =
         events.create(
