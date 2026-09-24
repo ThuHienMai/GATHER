@@ -1,6 +1,6 @@
 # Deployment and live acceptance
 
-Deployment preparation is now underway. The user has created `gather_minerva_bot`, provided the GATHER GitHub repository, and connected Railway and Vercel accounts to GitHub. Hosting projects, Mini App registration, webhook registration and live checks remain pending. See [current handoff](deployment-handoff.md).
+The frontend runs on Vercel and the API on Railway. Telegram launch, group setup, enrollment, and comment notifications have been exercised manually. See [deployment configuration](deployment-handoff.md) for public URLs and host settings.
 
 ## Telegram
 

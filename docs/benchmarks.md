@@ -40,4 +40,4 @@ A 30-second JFR profile of an intermediate failing RSVP run recorded 491 Postgre
 
 An inherited host `DEBUG=release` also enabled Spring debug logging. Verification scripts force DEBUG=false; final measurements retain normal request logs. Baseline and final logging conditions therefore differ, so changes in latency cannot be attributed to one code change alone.
 
-These are short single-machine acceptance runs, not sustained-capacity claims. They do not measure WAN latency, real Telegram delivery, TLS proxies, production backup activity, or multi-instance behavior. Rerun on the selected hosting tier before release. The published summaries are executed measurements, not projected résumé numbers.
+These are short single-machine acceptance runs, not sustained-capacity claims. They do not measure WAN latency, real Telegram delivery, TLS proxies, production backup activity, or multi-instance behavior. Rerun on the selected hosting tier before release. The summaries below come from the recorded test runs.

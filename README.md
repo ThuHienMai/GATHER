@@ -4,17 +4,18 @@ A Telegram Mini App for making plans with your community: fixed events, fair wai
 
 Gather uses **Next.js 16.3.6**, **Spring Boot 3.5.16 / Java 21**, and **PostgreSQL 17**. The web app opens inside Telegram; ordinary browser visitors see an “Open in Telegram” entry screen. Production authentication has no test bypass.
 
-## What is implemented
+## Features
 
 - Telegram launch validation, memory-only 60-minute sessions, group enrollment, administrator synchronization, and membership revocation.
 - Community feeds, My Events and Past views; create/edit/cancel/lock plans with stale-edit protection.
 - Going/Maybe, capacity enforcement, FIFO waitlists and automatic promotion.
-- Authenticated realtime updates, reconnect/refetch, and General/Time/Location discussion with replies.
+- Authenticated realtime updates, reconnect/refetch, and one comment feed per event, with replies.
+- City timezone dropdowns for San Francisco, Tokyo, Buenos Aires, and Berlin.
 - Private availability with keyboard and drag selection, daylight-saving validation, ranked scheduling and finalize-and-lock.
 - Transactional outbox, leased notification delivery, preferences, DM opt-in and bounded retries.
 - Authorized Telegram sharing, Google Calendar links and authenticated `.ics` export.
 
-[Acceptance evidence](docs/implementation-status.md) distinguishes passing local checks from pending release work. [Measured performance](docs/benchmarks.md) includes workload details and limitations. No production users or adoption are claimed.
+[Acceptance evidence](docs/implementation-status.md) distinguishes passing local checks from pending release work. [Measured performance](docs/benchmarks.md) includes workload details and limitations.
 
 ## Run locally
 
@@ -55,7 +56,7 @@ bash scripts/e2e-stack.sh test
 
 Backend integration tests use real PostgreSQL Testcontainers. The E2E command starts an isolated database on port 5433 and API on port 8081, runs Chromium workflows, and stops its services. Tests cover the last-seat race, waitlist fairness, authorization, stale edits, outbox rollback, lease recovery, and 4,000 seeded scheduling comparisons. Browser workflows include two-client convergence and conflict recovery.
 
-Regenerate API types with the [contract instructions](docs/api.md). CI regenerates both artifacts and rejects drift. CI configuration is included; a hosted CI run is pending repository setup.
+Regenerate API types with the [contract instructions](docs/api.md). CI regenerates both artifacts and rejects drift. GitHub Actions runs these checks on pushes and pull requests.
 
 Run load tests separately from browser tests and other builds:
 
@@ -87,4 +88,4 @@ PostgreSQL row locks serialize capacity changes. Event versions apply to organiz
 
 See [architecture](docs/architecture.md), [API and WebSocket protocol](docs/api.md), [deployment and operations](docs/deployment.md), and [original specification](docs/product-specification.md).
 
-V1 intentionally excludes native apps, PWA installation, media storage, calendar synchronization/OAuth, payments, social feeds, recommendation AI, Redis and Kafka. Deployment targets one backend instance. BotFather, Vercel/Railway, real Telegram WebViews, calendar imports, backups and initial-cohort checks remain release work until their environments are configured.
+V1 intentionally excludes native apps, PWA installation, media storage, calendar synchronization/OAuth, payments, social feeds, recommendation AI, Redis and Kafka. Deployment targets one backend instance. The frontend is deployed on Vercel and the API on Railway. See the deployment checklist for remaining mobile, calendar import, backup, and cohort checks.

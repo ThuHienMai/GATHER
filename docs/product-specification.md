@@ -1,14 +1,6 @@
-I would make one important architectural change before Codex touches the code:
-
-**Gather should be a Telegram Mini App, not merely a generic PWA.** A Telegram Mini App is still a web application—HTML/React/JavaScript served over HTTPS—but it opens directly inside Telegram's WebView. Telegram explicitly supports direct-link Mini Apps with shared chat context and describes them as appropriate for cooperative/teamwork applications. That fits Gather unusually well because Telegram is already where the problem occurs. ([Telegram Core][1])
-
-The same frontend can remain responsive in a normal browser, but I would make **Telegram the primary production surface**. I would *not* build a native app, a separate PWA installation flow, or media storage in V1.
-
-Below is the specification I would give Codex.
-
----
-
 # Gather — Technical/Product Specification
+
+This document records the original design. The current UI uses city timezone dropdowns and a single comment feed per event; legacy discussion categories remain in storage for compatibility. See [implementation status](implementation-status.md) for verification and deployment status.
 
 ## 1. Product definition
 
@@ -46,7 +38,7 @@ That separation is intentional.
 
 # 2. Final product surface
 
-I would call it:
+Product name:
 
 > **Telegram Mini App + Telegram Bot**
 
@@ -127,7 +119,7 @@ For a system with perhaps dozens or hundreds of real users, microservices would 
 | Database                | **PostgreSQL**                                                             | Transactions, locking, constraints, JSONB and strong relational modeling all matter for Gather                                                                                         |
 | ORM                     | **Spring Data JPA/Hibernate**                                              | Fast enough to implement while giving us transactions and `@Version` optimistic locking                                                                                                |
 | Migrations              | **Flyway**                                                                 | Every schema change version-controlled                                                                                                                                                 |
-| Realtime                | **Native WebSockets with small JSON protocol**                             | We have genuine realtime requirements but no need for STOMP/RabbitMQ                                                                                                                   |
+| Realtime                | **Native WebSockets with small JSON protocol**                             | Supports realtime updates without STOMP or RabbitMQ                                                                                                                   |
 | Async reliability       | **PostgreSQL transactional outbox**                                        | Gives us reliable post-transaction work without inventing Kafka infrastructure                                                                                                         |
 | Telegram integration    | **Telegram Bot API + Mini App API**                                        | Native discovery, identity and notifications                                                                                                                                           |
 | Calendar V1             | **Google Calendar deep link + `.ics`**                                     | No OAuth or verification needed just to add an event                                                                                                                                   |
@@ -333,7 +325,7 @@ WHERE status IN ('COMPLETED', 'CANCELLED')
 
 # 9. Database schema
 
-I would use UUID primary keys for internal entities.
+Use UUID primary keys for internal entities.
 
 ## `users`
 
@@ -522,7 +514,7 @@ Now you have an extremely concrete interview discussion around:
 * consistency;
 * fairness.
 
-And the feature is genuinely useful for restaurants, karaoke, tickets, etc.
+Use waitlists for capacity-limited events such as restaurant bookings or karaoke.
 
 ---
 
@@ -855,7 +847,7 @@ No raw HTML.
 
 # 19. Real-time architecture
 
-Use **WebSockets**, but importantly:
+Use **WebSockets** with these constraints:
 
 ### WebSockets are NOT the source of truth.
 
@@ -1288,7 +1280,7 @@ Webhook endpoint is the only endpoint not requiring normal Gather authentication
 
 # 30. Sharing into Telegram
 
-I would enable the bot's **inline mode**.
+Enable the bot's **inline mode**.
 
 User taps:
 
@@ -1532,7 +1524,6 @@ No client validation substitutes for server validation.
 
 # 38. Time handling
 
-This is important.
 
 Store every actual timestamp in:
 
@@ -2048,7 +2039,7 @@ Telegram's current design guidance specifically recommends adapting to Telegram 
 
 # 53. Accessibility
 
-Do not treat this as optional polish.
+This is required for release.
 
 Required:
 
@@ -2409,7 +2400,7 @@ Never ship a production bypass.
 
 Use k6.
 
-We need real performance measurements for both engineering validation and résumé bullets.
+Measure performance with reproducible workloads.
 
 Scenarios:
 
@@ -2451,7 +2442,7 @@ Telegram webhook duplicate burst
 
 # 67. Initial performance targets
 
-Targets, **not résumé claims**:
+Performance targets:
 
 ```text
 GET event p95          < 200 ms
@@ -2463,7 +2454,7 @@ schedule ranking       < 100 ms for 500 attendees
 
 If we don't meet them, profile and fix the actual bottleneck.
 
-Then the résumé reports the measured result.
+Record the measured results alongside the workload and environment.
 
 ---
 
@@ -2501,7 +2492,6 @@ Commit results to:
 docs/benchmarks.md
 ```
 
-This gives you a genuine technical-performance story.
 
 ---
 
@@ -2545,7 +2535,7 @@ full private comment bodies
 
 ---
 
-# 70. Product metrics for your résumé
+# 70. Product metrics
 
 Make these measurable from production data:
 
@@ -2688,13 +2678,11 @@ deploy code reading event_title
 later remove title
 ```
 
-This gives you realistic production-database discipline.
 
 ---
 
 # 74. What explicitly does NOT belong in V1
 
-This boundary should be given to Codex.
 
 **Do not implement:**
 
@@ -2720,13 +2708,12 @@ payments
 maps API
 ```
 
-If Codex invents any of those, reject the change.
 
 ---
 
 # 75. Implementation sequence
 
-The order matters because we want a working vertical slice early.
+Build a working vertical slice first, then extend it in this order.
 
 ## Phase 0 — repository/bootstrap
 
@@ -3071,7 +3058,6 @@ Then document:
 77.6% reduction
 ```
 
-That becomes résumé material.
 
 Never invent the metric in advance.
 
@@ -3079,7 +3065,7 @@ Never invent the metric in advance.
 
 # 89. Phase 14 — real-user launch
 
-Start with your actual cohort.
+Start with a small university cohort.
 
 Initial target:
 
@@ -3135,64 +3121,11 @@ Do **not** begin with a giant logo and 30 technology badges.
 
 ---
 
-# 91. What makes this project technically serious
+## Implementation constraints
 
-After this implementation, the technical story is no longer:
+Use PostgreSQL as the source of truth. Preserve transactional integrity and test concurrency-sensitive paths. Add dependencies and infrastructure only when required by the product. Record benchmark results only from executed tests.
 
-> I made a social event app.
-
-It becomes:
-
-### Algorithmic engineering
-
-Efficient interval-based schedule optimization.
-
-### Database/concurrency engineering
-
-Optimistic event updates, transactional RSVP capacity, waitlist promotion.
-
-### Realtime engineering
-
-WebSocket invalidation and eventual client convergence.
-
-### Reliability engineering
-
-Transactional outbox, idempotent Telegram webhooks, durable retryable notifications.
-
-### Integration engineering
-
-Telegram Mini Apps/Bot API + calendar interoperability.
-
-### Product engineering
-
-Real users solving a real community coordination problem.
-
-That's the portfolio shape we wanted.
-
----
-
-# 92. Target final résumé outcome
-
-I would design the project so something like this can eventually become **truthful**:
-
-**Gather — Real-Time Campus Coordination Platform**
-*Java, Spring Boot, Next.js, TypeScript, PostgreSQL, WebSockets*
-
-> • Built a Telegram Mini App used by **[N]+ students across [M]+ events**, combining structured RSVPs, collaborative availability planning, real-time discussion, waitlists, and calendar synchronization.
-> • Engineered PostgreSQL-backed concurrency control, idempotent Telegram webhooks, transactional outbox processing, and WebSocket state invalidation to maintain consistent event state across **[N] concurrent clients**.
-> • Designed an interval-based scheduling engine that ranks attendance-maximizing event windows in **O(A + S)**, improving recommendation latency by **[X×]** over a brute-force baseline; optimized backend performance to **[X ms] p95** under **[Y] concurrent users**.
-
-Notice that those bullets now have **three distinct technical stories** rather than twenty feature names.
-
----
-
-## The instruction I would put at the very top of your Codex task
-
-> **Implement Gather incrementally according to this specification. Do not add technologies, services, frameworks, product features, database tables, or architectural abstractions that are not justified here. Prefer the simplest implementation satisfying the stated correctness and performance requirements. Treat PostgreSQL as the source of truth; preserve transactional integrity; write tests for every concurrency-sensitive path. Complete phases sequentially and ensure the acceptance criteria for a phase pass before implementing the next phase. Do not fabricate benchmark numbers or seed them into documentation—benchmarks must be generated from executed tests.**
-
-That final constraint is especially important if you're using an agent to build this: **we want Codex to implement the sophistication we intentionally designed, not make the project look sophisticated by spraying infrastructure everywhere.**
-
-[1]: https://core.telegram.org/bots/webapps?utm_source=chatgpt.com "Telegram Mini Apps"
-[2]: https://nextjs.org/blog?utm_source=chatgpt.com "Next.js by Vercel - The React Framework | Next.js by Vercel - The React Framework"
-[3]: https://docs.spring.io/spring-boot/?utm_source=chatgpt.com "Spring Boot :: Spring Boot"
-[4]: https://developers.google.com/workspace/calendar/api/auth?utm_source=chatgpt.com "Choose Google Calendar API scopes  |  Google for Developers"
+[1]: https://core.telegram.org/bots/webapps "Telegram Mini Apps"
+[2]: https://nextjs.org/blog "Next.js by Vercel - The React Framework | Next.js by Vercel - The React Framework"
+[3]: https://docs.spring.io/spring-boot/ "Spring Boot :: Spring Boot"
+[4]: https://developers.google.com/workspace/calendar/api/auth "Choose Google Calendar API scopes  |  Google for Developers"

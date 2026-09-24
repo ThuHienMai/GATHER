@@ -34,3 +34,7 @@ pnpm typecheck
 ```
 
 CI compares regenerated contract artifacts to the committed files. No production authentication bypass exists; E2E uses real HMAC/JWT verification with explicitly test-only keys on an isolated local API.
+
+## Discussion
+
+The event screen displays one comment feed. `GET /api/v1/events/{id}/comments?section=ALL&page=0` returns all existing categories in chronological order, 50 comments per page. New top-level comments use `GENERAL`; replies retain the parent category for compatibility with existing clients. Categories are not shown in the UI.

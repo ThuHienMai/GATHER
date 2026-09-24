@@ -4,7 +4,7 @@ The original specification is in `product-specification.md`. Implement phases 0â
 
 ## Current scope
 
-The user explicitly deferred creating Telegram, Vercel and Railway projects. Complete implementation and locally executable checks; preserve deployment values as environment variables and document later setup. Live deployment is not part of this local completion pass.
+The application is deployed on Vercel and Railway. Continue verifying changes locally and in CI; keep deployment secrets in hosting environment variables. Remaining release checks are tracked in deployment.md.
 
 ## Accepted clarifications
 

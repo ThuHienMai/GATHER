@@ -1,37 +1,39 @@
-# Gather deployment handoff
+# Deployment configuration
 
-Confirmed public configuration:
+## Services
 
-- GitHub: https://github.com/ThuHienMai/GATHER
-- Telegram bot: `gather_minerva_bot`
-- Railway account: signed in through GitHub.
-- Vercel account: signed in through Google and linked to GitHub.
-- Mini App short name: `gather` (planned; register in BotFather).
+- Repository: https://github.com/ThuHienMai/GATHER
+- Telegram bot: https://t.me/gather_minerva_bot
+- Frontend: https://gather-chi-rosy.vercel.app
+- API: https://gather-api-production-8dc3.up.railway.app
+- Railway project: Gather; services: gather-api and Postgres.
+- Mini App short name configured in the application: `gather`. Named Mini App registration is separate from the working bot menu button.
 
 ## Railway
 
-After publishing the code, create a project with PostgreSQL and a GitHub-backed API service. Select repository `ThuHienMai/GATHER`, Root Directory `/apps/api`, and Config File `/apps/api/railway.json`. Keep one replica. The config uses the existing Dockerfile and database readiness health check. Generate a public HTTPS domain.
+The API builds from `apps/api/Dockerfile`, with root directory `/apps/api`. Set these in the service dashboard:
 
-Enter secrets only in Railway Variables. See deployment.md for database references, JWT signing secret, bot token, webhook secret and management token. Set `TELEGRAM_BOT_USERNAME=gather_minerva_bot` and `TELEGRAM_MINI_APP_SHORT_NAME=gather`. Set `FRONTEND_ORIGIN` to the eventual Vercel production origin, with no trailing slash.
+- One replica; serverless disabled.
+- Healthcheck path: `/actuator/health/readiness`.
+- Healthcheck timeout: 300 seconds.
+- Restart policy: On Failure.
+
+The checked-in railway.json is a legacy configuration. New services use dashboard settings.
+
+Keep database credentials, JWT signing secret, bot token, webhook secret, and management token in Railway Variables. Set `FRONTEND_ORIGIN=https://gather-chi-rosy.vercel.app`, without a trailing slash. See [deployment instructions](deployment.md) for the full variable list.
 
 ## Vercel
 
-Import the same repository with Next.js preset, Root Directory `apps/web`, Node.js 24, and workspace source files outside the root included. Use the pnpm lockfile and default Next.js build settings.
-
-Production variables:
+Use the Next.js preset, root directory `apps/web`, Node.js 24, and include workspace files outside the root. Use the pnpm lockfile and default Next.js build settings.
 
 ```text
-NEXT_PUBLIC_API_URL=<Railway API HTTPS origin>
+NEXT_PUBLIC_API_URL=https://gather-api-production-8dc3.up.railway.app
 NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=gather_minerva_bot
 NEXT_PUBLIC_TELEGRAM_MINI_APP_SHORT_NAME=gather
 ```
 
-## Still needed
+## Updating
 
-- Code published to GitHub.
-- Railway project/service names and backend HTTPS origin.
-- Vercel project name and production HTTPS origin.
-- Secrets entered privately in Railway, not in the repository or chat.
-- Named Mini App registration, webhook registration and two-account live checks.
+Push changes to `main`. Check that Railway reports the commit as Active and Vercel reports the production deployment as Ready. Changes to both frontend and backend require both deployments to finish. Close and reopen the Telegram Mini App to load the new frontend.
 
-No deployment or webhook registration is implied by these local files. Account login in a browser does not automatically authenticate command-line tools in this workspace.
+See [the release checklist](deployment.md#release-checklist) for live checks that remain outstanding.
