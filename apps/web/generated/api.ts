@@ -682,7 +682,7 @@ export interface operations {
                 };
                 content: {
                     "*/*": {
-                        [key: string]: boolean;
+                        [key: string]: unknown;
                     };
                 };
             };

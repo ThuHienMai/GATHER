@@ -32,7 +32,7 @@ public class TelegramWebhookController {
   }
 
   @PostMapping("/api/v1/telegram/webhook")
-  public Map<String, Boolean> receive(
+  public Map<String, Object> receive(
       @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", defaultValue = "") String supplied,
       @RequestBody byte[] body)
       throws Exception {
@@ -53,6 +53,24 @@ public class TelegramWebhookController {
           Set.of("/setup", "/join", "/start", "/help").contains(command) ? command : "other",
           e.getStatusCode().value(),
           e.getReason());
+      // Terminal command errors must not keep Telegram retrying an unchanged message.
+      // The service transaction has rolled back before this separate acknowledgement.
+      if (Set.of("/setup", "/join").contains(command)
+          && Set.of(400, 403).contains(e.getStatusCode().value())
+          && update.path("update_id").isIntegralNumber()
+          && message.path("chat").path("id").isIntegralNumber()) {
+        if (updates.acknowledgeRejected(update.path("update_id").asLong())) {
+          // Telegram supports a Bot API method in a successful webhook response.
+          return Map.of(
+              "method",
+              "sendMessage",
+              "chat_id",
+              message.path("chat").path("id").asLong(),
+              "text",
+              e.getReason());
+        }
+        return Map.of("ok", true);
+      }
       throw e;
     } catch (TelegramBotClient.Failure e) {
       log.warn(
@@ -70,7 +88,7 @@ public class TelegramWebhookController {
     }
   }
 
-  private Map<String, Boolean> process(JsonNode update, JsonNode message, String command) {
+  private Map<String, Object> process(JsonNode update, JsonNode message, String command) {
     String role = "MEMBER";
     if (Set.of("/setup", "/join").contains(command)) {
       if (message.has("sender_chat"))

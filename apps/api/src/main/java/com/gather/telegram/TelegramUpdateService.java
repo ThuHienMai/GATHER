@@ -29,6 +29,17 @@ public class TelegramUpdateService {
   }
 
   @Transactional
+  public boolean acknowledgeRejected(long updateId) {
+    var now = Timestamp.from(clock.instant());
+    return jdbc.update(
+            "INSERT INTO telegram_updates(update_id,received_at,processed_at) VALUES (?,?,?) ON CONFLICT DO NOTHING",
+            updateId,
+            now,
+            now)
+        == 1;
+  }
+
+  @Transactional
   public boolean process(JsonNode update, String verifiedRole) {
     if (!update.path("update_id").isIntegralNumber())
       throw new ApiException(400, "Missing update ID.");
