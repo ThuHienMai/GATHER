@@ -181,19 +181,24 @@ public class EventService {
       e.flexWindowEnd = null;
       e.durationMinutes = null;
     } else if ("FLEXIBLE".equals(in.schedulingMode())) {
-      if (in.flexWindowStart() == null
-          || in.flexWindowEnd() == null
-          || !in.flexWindowEnd().isAfter(in.flexWindowStart())
-          || !in.flexWindowEnd().isAfter(clock.instant())
-          || Duration.between(in.flexWindowStart(), in.flexWindowEnd())
-                  .compareTo(Duration.ofDays(14))
-              > 0
-          || in.durationMinutes() == null
-          || in.durationMinutes() < 30
-          || in.durationMinutes() > 480
-          || Duration.between(in.flexWindowStart(), in.flexWindowEnd())
-                  .compareTo(Duration.ofMinutes(in.durationMinutes()))
-              < 0) throw new ApiException(400, "Invalid flexible scheduling window or duration.");
+      if (in.flexWindowStart() == null || in.flexWindowEnd() == null)
+        throw new ApiException(400, "Enter both Starts and Ends for the scheduling window.");
+      if (!in.flexWindowEnd().isAfter(in.flexWindowStart()))
+        throw new ApiException(400, "Ends must be later than Starts.");
+      if (!in.flexWindowEnd().isAfter(clock.instant()))
+        throw new ApiException(400, "Ends must be in the future. Check the date and timezone.");
+      var window = Duration.between(in.flexWindowStart(), in.flexWindowEnd());
+      if (window.compareTo(Duration.ofDays(14)) > 0)
+        throw new ApiException(
+            400, "The scheduling window from Starts to Ends cannot exceed 14 days.");
+      if (in.durationMinutes() == null || in.durationMinutes() < 30 || in.durationMinutes() > 480)
+        throw new ApiException(400, "Duration must be between 30 and 480 minutes.");
+      if (window.compareTo(Duration.ofMinutes(in.durationMinutes())) < 0)
+        throw new ApiException(
+            400,
+            "The window from Starts to Ends must be at least "
+                + in.durationMinutes()
+                + " minutes long.");
       if (e.flexWindowStart != null
           && (!e.flexWindowStart.equals(in.flexWindowStart())
               || !e.flexWindowEnd.equals(in.flexWindowEnd())))

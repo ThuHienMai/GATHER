@@ -308,6 +308,51 @@ class EventIT {
   @Autowired com.gather.scheduling.SchedulingService scheduling;
 
   @Test
+  void thirtyMinuteDurationIsValidAndWindowErrorsAreSpecific() {
+    var start = Instant.now().plusSeconds(3600).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    java.util.function.BiFunction<Instant, Instant, EventInput> flexible =
+        (from, to) ->
+            new EventInput(
+                "Short meetup",
+                null,
+                null,
+                null,
+                "FLEXIBLE",
+                null,
+                null,
+                from,
+                to,
+                30,
+                "Asia/Tokyo",
+                null);
+    assertThat(
+            events.create(community, user, flexible.apply(start, start.plusSeconds(1800)))
+                .durationMinutes)
+        .isEqualTo(30);
+    assertThatThrownBy(
+            () -> events.create(community, user, flexible.apply(start, start.plusSeconds(1799))))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("at least 30 minutes");
+    assertThatThrownBy(() -> events.create(community, user, flexible.apply(start, start)))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Ends must be later than Starts");
+    assertThatThrownBy(
+            () ->
+                events.create(
+                    community, user, flexible.apply(start, start.plusSeconds(14 * 86400 + 1))))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("cannot exceed 14 days");
+    assertThatThrownBy(
+            () ->
+                events.create(
+                    community,
+                    user,
+                    flexible.apply(start.minusSeconds(7200), start.minusSeconds(5400))))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Ends must be in the future");
+  }
+
+  @Test
   void availabilityIsCanonicalPrivateAndFinalizationLocks() {
     // PostgreSQL stores microseconds; Linux clocks can supply nanoseconds that round
     // across the window boundary when the event is persisted and read back.
