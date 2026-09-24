@@ -49,6 +49,12 @@ public class CommentService {
   public List<Comment> list(UUID event, UUID user, String section, int page) {
     events.get(event, user);
     if (page < 0 || page > 100000) throw new ApiException(400, "Invalid page.");
+    if ("ALL".equals(section))
+      return jdbc.query(
+          "SELECT c.*,u.first_name FROM comments c JOIN users u ON u.id=c.author_id WHERE c.event_id=? ORDER BY c.created_at,c.id LIMIT 50 OFFSET ?",
+          this::map,
+          event,
+          page * 50);
     return jdbc.query(
         "SELECT c.*,u.first_name FROM comments c JOIN users u ON u.id=c.author_id WHERE c.event_id=? AND c.section=? ORDER BY c.created_at,c.id LIMIT 50 OFFSET ?",
         this::map,

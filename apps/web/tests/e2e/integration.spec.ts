@@ -14,14 +14,16 @@ test.describe('real PostgreSQL and API workflow',()=>{
  test('create, RSVP race, realtime promotion, discussion, cancel, and past view',async({browser})=>{
   const a=await browser.newContext();const b=await browser.newContext();await telegram(a,1001,'Alice');await telegram(b,1002,'Bob');const failures:string[]=[];for(const context of [a,b])context.on('response',response=>{if(response.url().includes('/api/')&&response.status()>=500)failures.push(response.url());});const alice=await a.newPage(),bob=await b.newPage();
   await alice.goto('/events/new?community=11111111-1111-1111-1111-111111111111');
+  await alice.getByRole('combobox',{name:'Timezone',exact:true}).selectOption('Europe/Berlin');
   const title=`Dinner ${Date.now()}`;await alice.getByLabel('What’s the plan?').fill(title);
-  const start=DateTime.now().setZone('Asia/Tokyo').plus({days:1}).startOf('hour');
+  const start=DateTime.now().setZone('Europe/Berlin').plus({days:1}).startOf('hour');
   await alice.getByLabel('Starts',{exact:true}).fill(start.toFormat("yyyy-MM-dd'T'HH:mm"));await alice.getByLabel('Ends',{exact:true}).fill(start.plus({hours:2}).toFormat("yyyy-MM-dd'T'HH:mm"));await alice.getByLabel('Capacity (optional)').fill('1');
   await alice.getByRole('button',{name:'Create event',exact:true}).click();await expect(alice).toHaveURL(/\/events\/[0-9a-f-]{36}$/);
   await bob.goto(alice.url());await expect(bob.getByRole('heading',{name:title})).toBeVisible();
   await alice.getByRole('button',{name:'Going',exact:true}).click();await expect(alice.getByText('1 / 1 going · 0 maybe · 0 waiting')).toBeVisible();
   await bob.getByRole('button',{name:'Going',exact:true}).click();await expect(bob.getByText(/You’re on the waitlist/)).toBeVisible();
   await alice.getByRole('button',{name:'Withdraw',exact:true}).click();await expect(bob.getByRole('button',{name:'Going',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(alice.getByLabel('Discussion sections')).toHaveCount(0);
   await alice.getByLabel('Add to the conversation').fill('See you by the station.');await alice.getByRole('button',{name:'Post comment'}).click();await expect(bob.getByText('See you by the station.')).toBeVisible();
   alice.once('dialog',dialog=>dialog.accept());await alice.getByRole('button',{name:'Cancel event',exact:true}).click();await expect(bob.getByText('cancelled',{exact:true})).toBeVisible();
   await alice.goto('/past');await expect(alice.getByRole('heading',{name:title})).toBeVisible();expect(failures).toEqual([]);await a.close();await b.close();

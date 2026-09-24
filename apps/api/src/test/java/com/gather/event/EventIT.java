@@ -303,6 +303,20 @@ class EventIT {
     comments.edit(parent, user, null, true);
     assertThat(comments.list(e.id, user, "TIME", 0).getFirst().body()).isEqualTo("[deleted]");
     assertThat(comments.list(e.id, user, "TIME", 0)).hasSize(2);
+    comments.create(
+        e.id,
+        user,
+        new com.gather.discussion.CommentService.CommentInput("GENERAL", null, "Hello everyone"));
+    comments.create(
+        e.id,
+        user,
+        new com.gather.discussion.CommentService.CommentInput("LOCATION", null, "At the station"));
+    assertThat(comments.list(e.id, user, "ALL", 0))
+        .extracting(c -> c.body())
+        .containsExactlyInAnyOrder("[deleted]", "Yes", "Hello everyone", "At the station");
+    assertThat(comments.list(e.id, user, "ALL", 1)).isEmpty();
+    assertThatThrownBy(() -> comments.list(e.id, UUID.randomUUID(), "ALL", 0))
+        .isInstanceOf(ApiException.class);
   }
 
   @Autowired com.gather.scheduling.SchedulingService scheduling;
