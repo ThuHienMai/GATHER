@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class TelegramWebhookController {
+  private static final org.slf4j.Logger log =
+      org.slf4j.LoggerFactory.getLogger(TelegramWebhookController.class);
   private final String secret;
   private final ObjectMapper mapper;
   private final TelegramBotClient bot;
@@ -42,6 +44,33 @@ public class TelegramWebhookController {
     var update = mapper.readTree(body);
     var message = update.path("message");
     var command = message.path("text").asText("").split("[ @]", 2)[0];
+    try {
+      return process(update, message, command);
+    } catch (ApiException e) {
+      log.warn(
+          "telegram_update_rejected updateId={} command={} status={} reason={}",
+          update.path("update_id").asLong(),
+          Set.of("/setup", "/join", "/start", "/help").contains(command) ? command : "other",
+          e.getStatusCode().value(),
+          e.getReason());
+      throw e;
+    } catch (TelegramBotClient.Failure e) {
+      log.warn(
+          "telegram_api_failed updateId={} code={} retryAfter={}",
+          update.path("update_id").asLong(),
+          e.code,
+          e.retryAfter);
+      throw e;
+    } catch (IllegalArgumentException e) {
+      log.warn(
+          "telegram_update_invalid updateId={} exceptionType={}",
+          update.path("update_id").asLong(),
+          e.getClass().getSimpleName());
+      throw e;
+    }
+  }
+
+  private Map<String, Boolean> process(JsonNode update, JsonNode message, String command) {
     String role = "MEMBER";
     if (Set.of("/setup", "/join").contains(command)) {
       if (message.has("sender_chat"))
