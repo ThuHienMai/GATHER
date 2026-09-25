@@ -32,7 +32,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-evidence
+          name: test-results
           path: |
             apps/api/target/surefire-reports
             apps/api/target/failsafe-reports

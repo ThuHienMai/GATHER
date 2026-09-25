@@ -1,51 +1,71 @@
-# Deployment and live acceptance
+# Deployment
 
-The frontend runs on Vercel and the API on Railway. Telegram launch, group setup, enrollment, and comment notifications have been exercised manually. See [deployment configuration](deployment-handoff.md) for public URLs and host settings.
+Gather runs on Vercel (frontend) and Railway (API and PostgreSQL).
 
-## Telegram
-
-1. Create a bot through BotFather. Store its token in the backend secret environment, never a browser variable.
-2. Configure a named Mini App (`gather` is the default short name), using the production Vercel HTTPS URL. Enable inline mode and configure the bot menu button.
-3. Add the bot as an administrator to a private test group. A group administrator runs `/setup`; students run `/join`. Start the bot privately to opt into DMs.
-4. Register an HTTPS webhook at `/api/v1/telegram/webhook` with a random `secret_token`. Subscribe explicitly to `message`, `inline_query`, `chat_member`, and `my_chat_member` updates. Telegram does not include membership updates in every default subscription.
-5. Verify signed launch, joining, administrator changes, leaving/removal, DM opt-in, blocked-bot handling, and user-initiated inline sharing with two real accounts. The sender and recipient both need community access to open an event.
-
-Webhook setup is an operator action. Use Telegram's setWebhook API without placing bot tokens in logs, shell history, or checked-in scripts. The endpoint validates the secret header before JSON parsing. Group timezone currently defaults to Asia/Tokyo; configure the community's timezone in PostgreSQL for other deployments before onboarding users.
-
-## Vercel
-
-Use repository root with install `pnpm install --frozen-lockfile`, build `pnpm --dir apps/web build`, and Next.js project/root configuration targeting `apps/web`. Alternatively set Root Directory to `apps/web` and allow access to workspace files outside that directory. Set `NEXT_PUBLIC_API_URL` to the Railway HTTPS API and `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` to the bot username. Set `NEXT_PUBLIC_TELEGRAM_MINI_APP_SHORT_NAME` to the BotFather short name (default `gather`). Public variables are embedded at build time.
+- Frontend: https://gather-chi-rosy.vercel.app
+- API: https://gather-api-production-8dc3.up.railway.app
+- Bot: https://t.me/gather_minerva_bot
 
 ## Railway
 
-Deploy exactly one backend instance using `apps/api/Dockerfile` with build context `apps/api`. Add managed PostgreSQL. Set:
+Use root directory `/apps/api` and its Dockerfile. Add a PostgreSQL service. In the API service dashboard, set one replica, disable serverless, and configure `/actuator/health/readiness` as the healthcheck path with a 300-second timeout. Use the On Failure restart policy.
 
-- `DATABASE_URL`: JDBC format `jdbc:postgresql://host:port/database` (translate Railway's PostgreSQL URI; do not pass `postgresql://` directly).
-- `DATABASE_USERNAME`, `DATABASE_PASSWORD` from the managed database.
-- `JWT_SIGNING_SECRET`: cryptographically random, at least 32 bytes.
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_MINI_APP_SHORT_NAME`.
-- `MANAGEMENT_TOKEN`: separate random secret of at least 32 bytes for metrics access.
-- `FRONTEND_ORIGIN`: exact Vercel origin, without trailing slash.
+Set these environment variables on the API service:
 
-Railway supplies PORT. Readiness is `/actuator/health/readiness`; database unavailability must fail readiness. Flyway runs at startup and Hibernate validates the schema. Use expand/migrate/contract migrations. Never combine destructive column removal with the release that starts migrating its consumers.
+- `DATABASE_URL`: `jdbc:postgresql://host:port/database`
+- `DATABASE_USERNAME` and `DATABASE_PASSWORD`: PostgreSQL credentials
+- `JWT_SIGNING_SECRET`: a random secret of at least 32 bytes
+- `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME`: from BotFather
+- `TELEGRAM_WEBHOOK_SECRET`: a separate random secret used when registering the webhook
+- `TELEGRAM_MINI_APP_SHORT_NAME`: the registered Mini App short name, currently `gather`
+- `MANAGEMENT_TOKEN`: a separate random secret for operational metrics
+- `FRONTEND_ORIGIN`: the Vercel HTTPS origin, without a trailing slash
+
+Railway supplies `PORT`. Use dashboard settings for new services; `railway.json` is retained for older configurations.
+
+Flyway runs migrations at startup, and Hibernate validates the schema. Do not edit migrations that have already run; add a new migration instead.
+
+## Vercel
+
+Import the repository with the Next.js preset and root directory `apps/web`. Use Node.js 24 and include workspace files outside the root directory. Keep the default build settings.
+
+Set these public environment variables before building:
+
+```text
+NEXT_PUBLIC_API_URL=https://gather-api-production-8dc3.up.railway.app
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=gather_minerva_bot
+NEXT_PUBLIC_TELEGRAM_MINI_APP_SHORT_NAME=gather
+```
+
+Bot tokens and signing secrets belong only in Railway.
+
+## Telegram
+
+Configure the bot's menu button in BotFather to open the Vercel URL. Register the named Mini App for event deep links and enable inline mode for sharing.
+
+Register a webhook through Telegram's `setWebhook` API:
+
+- URL: `https://gather-api-production-8dc3.up.railway.app/api/v1/telegram/webhook`
+- `secret_token`: the same value as `TELEGRAM_WEBHOOK_SECRET`
+- `allowed_updates`: `message`, `inline_query`, `chat_member`, `my_chat_member`
+
+Keep the bot token out of command history and logs. Membership updates must be explicitly included in the subscription.
+
+Add the bot as an administrator to a group. A group administrator sends `/setup@gather_minerva_bot`; members send `/join@gather_minerva_bot`. Members can then open the Mini App from the bot's private chat. Sending `/start` privately enables notifications.
+
+## Updates
+
+Push to `main`. Check that Railway shows the new commit as Active and Vercel shows its production deployment as Ready. When both finish, close and reopen the Telegram Mini App. Frontend environment-variable changes require a rebuild.
+
+## Troubleshooting
+
+- Bot commands stay silent: inspect the API deploy logs for `telegram_update_rejected` or `telegram_api_failed`. Confirm the webhook subscription and secret match the service configuration.
+- No communities appear: wait for the bot's `/join` confirmation, then reopen Gather. Both the user and bot must still belong to the group.
+- Browser requests fail: check `FRONTEND_ORIGIN` against the exact Vercel production origin.
+- Backend is unhealthy: inspect startup logs and database credentials. Readiness includes database connectivity.
 
 ## Operations
 
-HTTP timings and status counts are recorded by Actuator. Gather exposes gauges for active WebSockets, pending outbox rows, and delivery states. Operational metrics require the X-Management-Token header matching MANAGEMENT_TOKEN (at least 32 random bytes); leave this unset to disable access. Configure the monitoring collector with this secret before launch. Health endpoints expose no sensitive details. Do not enable Spring request-body/SQL parameter trace logging in production. Ensure the hosting environment does not inherit a DEBUG variable that enables Spring debug mode. Local verification scripts force DEBUG=false. Request completion logs contain a generated requestId, framework route template, resource UUID, HTTP operation/status, and elapsed milliseconds; they omit bodies, query strings and authorization headers. Scheduling scoring has a separate `gather.scheduling.scoring` timer.
+Metrics at `/actuator/metrics` require an `X-Management-Token` header. Monitor outbox backlog and failed notification deliveries. Avoid request-body and SQL-parameter logging in production.
 
-Review pending/failed deliveries and outbox age. A process restart should recover pending work and expired leases. Do not manually reset sent deliveries without understanding duplicate-message risk. One Telegram HTTP call can have an ambiguous outcome; exactly-once external delivery is not guaranteed.
-
-Enable managed PostgreSQL backups and test a restore into an isolated database before launch. A manual logical backup uses `pg_dump --format=custom` with credentials supplied securely in the environment; restore with `pg_restore` into a new database, then verify Flyway history, counts, and application readiness. Backups contain private community data.
-
-Roll back application images only when their schema remains compatible. Do not use destructive down migrations. For data incidents, stop writes and restore into a separate database for verification before switching connections.
-
-## Release checklist
-
-- All automated phase checks, generated-type checks, browser workflows and chosen load thresholds pass.
-- Real Telegram launch, `/setup`, `/join`, membership revocation, inline cards and DMs verified.
-- Reconnect/offline and theme/safe-area behavior checked on Telegram iOS and Android.
-- ICS imported into Google and Apple Calendar; UTC times and local display verified.
-- Railway/Vercel HTTPS and origin configuration verified; secrets, backups and monitoring configured.
-- Invite 10–20 actual cohort members; measure real activity separately from synthetic traffic.
-
-Never report seeded records, browser contexts, or load-test VUs as real users.
+Enable PostgreSQL backups and test restoring to a separate database with `pg_restore`. Roll back application deployments only when they remain compatible with the current schema. Avoid destructive down migrations.

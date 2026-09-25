@@ -10,3 +10,8 @@ playwright-report/
 .DS_Store
 .tools/
 *.tsbuildinfo
+
+# Local instructions and test output
+AGENTS.md
+CLAUDE.md
+load-tests/results/

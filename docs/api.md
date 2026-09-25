@@ -8,7 +8,7 @@ Use `Authorization: Bearer <JWT>` on protected routes. Authentication is `POST /
 
 `GET /events/{id}` returns `ETag: "N"`. Send this value as `If-Match` for editing, locking, cancellation, and flexible finalization. PATCH currently accepts the complete editable event form, with omitted nullable fields cleared; it is not JSON Patch. All routes above use the `/api/v1` prefix.
 
-Event feeds and My Events accept `page` (zero-based, 30 results); `view=upcoming|past` selects the lifecycle view. Discussion pages contain 50 entries with section `GENERAL|TIME|LOCATION`. Notification history pages contain 30 entries. Interval timestamps require ISO-8601 instants. Timezone fields use IANA names.
+Event feeds and My Events accept `page` (zero-based, 30 results); `view=upcoming|past` selects the lifecycle view. Discussion pages contain 50 entries; use `section=ALL` for the combined feed. Notification history pages contain 30 entries. Interval timestamps require ISO-8601 instants. Timezone fields use IANA names.
 
 `PUT /events/{id}/rsvp` accepts `{"status":"GOING"}` or `{"status":"MAYBE"}`; the server decides whether Going is waitlisted. DELETE withdraws. `GET /events/{id}/rsvps` returns counts, current user status and participants. Availability PUT replaces the current user's entire interval list; an empty list clears it. Recommendations return the best three slots. Finalization requires a valid future candidate and locks planning.
 
@@ -33,7 +33,7 @@ pnpm --dir apps/web generate:api
 pnpm typecheck
 ```
 
-CI compares regenerated contract artifacts to the committed files. No production authentication bypass exists; E2E uses real HMAC/JWT verification with explicitly test-only keys on an isolated local API.
+CI compares regenerated contract artifacts to the committed files.
 
 ## Discussion
 

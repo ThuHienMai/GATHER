@@ -1,4 +1,4 @@
-name: Manual load verification
+name: Load tests
 on: workflow_dispatch
 permissions:
   contents: read
@@ -18,6 +18,7 @@ jobs:
           bash scripts/e2e-stack.sh start
           trap 'bash scripts/e2e-stack.sh stop' EXIT
           docker compose -p gather-e2e -f infra/e2e-compose.yml exec -T postgres psql -U gather_test -d gather_test < scripts/load-seed.sql
+          mkdir -p load-tests/results
           cd load-tests/k6
           failed=0
           for scenario in feed rsvp ws schedule webhook; do
@@ -28,4 +29,4 @@ jobs:
         if: always()
         with:
           name: load-results
-          path: docs/load-results
+          path: load-tests/results

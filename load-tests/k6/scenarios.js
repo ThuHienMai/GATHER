@@ -30,4 +30,4 @@ export default function(){
  }
  if(__VU===1&&__ITER===0&&response.status!==200)console.error(`First response: ${response.status} ${response.body}`);errors.add(response.status>=500);
 }
-export function handleSummary(data){return {[`../../docs/load-results/${scenario}.json`]:JSON.stringify(data,null,2)};}
+export function handleSummary(data){return {[`../results/${scenario}.json`]:JSON.stringify(data,null,2)};}
